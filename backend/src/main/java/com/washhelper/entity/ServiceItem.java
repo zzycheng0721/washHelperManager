@@ -14,6 +14,9 @@ public class ServiceItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "shop_id", nullable = false)
+    private Long shopId = 1L;
+
     @Column(nullable = false, length = 100)
     private String name;
 
@@ -48,6 +51,9 @@ public class ServiceItem {
         }
         if (price == null) {
             price = BigDecimal.ZERO;
+        }
+        if (shopId == null) {
+            shopId = 1L;
         }
     }
 

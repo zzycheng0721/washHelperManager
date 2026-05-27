@@ -13,6 +13,9 @@ public class Employee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "shop_id", nullable = false)
+    private Long shopId = 1L;
+
     @Column(nullable = false, length = 50)
     private String name;
 
@@ -45,6 +48,9 @@ public class Employee {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
+        if (shopId == null) {
+            shopId = 1L;
+        }
         if (status == null) {
             status = "active";
         }

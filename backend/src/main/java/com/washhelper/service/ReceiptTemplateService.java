@@ -14,42 +14,28 @@ public class ReceiptTemplateService {
     @Autowired
     private ReceiptTemplateRepository receiptTemplateRepository;
 
-    public Map<String, Object> getTemplate() {
-        return toMap(getOrCreate());
+    public Map<String, Object> getTemplate(Long shopId) {
+        return toMap(getOrCreate(shopId));
     }
 
     @Transactional
-    public void updateTemplate(Map<String, Object> request) {
-        ReceiptTemplate template = getOrCreate();
-        if (request.containsKey("showLogo")) {
-            template.setShowLogo(toBoolean(request.get("showLogo")));
-        }
-        if (request.containsKey("showCustomerName")) {
-            template.setShowCustomerName(toBoolean(request.get("showCustomerName")));
-        }
-        if (request.containsKey("showWashInstructions")) {
-            template.setShowWashInstructions(toBoolean(request.get("showWashInstructions")));
-        }
-        if (request.containsKey("footerText")) {
-            template.setFooterText(asString(request.get("footerText")));
-        }
-        if (request.containsKey("headerText")) {
-            template.setHeaderText(asString(request.get("headerText")));
-        }
-        if (request.containsKey("printWidth")) {
-            template.setPaperWidth(asString(request.get("printWidth")));
-        }
-        if (request.containsKey("paperWidth")) {
-            template.setPaperWidth(asString(request.get("paperWidth")));
-        }
+    public void updateTemplate(Long shopId, Map<String, Object> request) {
+        ReceiptTemplate template = getOrCreate(shopId);
+        if (request.containsKey("showLogo")) template.setShowLogo(toBoolean(request.get("showLogo")));
+        if (request.containsKey("showCustomerName")) template.setShowCustomerName(toBoolean(request.get("showCustomerName")));
+        if (request.containsKey("showWashInstructions")) template.setShowWashInstructions(toBoolean(request.get("showWashInstructions")));
+        if (request.containsKey("footerText")) template.setFooterText(asString(request.get("footerText")));
+        if (request.containsKey("headerText")) template.setHeaderText(asString(request.get("headerText")));
+        if (request.containsKey("printWidth")) template.setPaperWidth(asString(request.get("printWidth")));
+        if (request.containsKey("paperWidth")) template.setPaperWidth(asString(request.get("paperWidth")));
         receiptTemplateRepository.save(template);
     }
 
-    private ReceiptTemplate getOrCreate() {
-        return receiptTemplateRepository.findFirstByOrderByIdAsc()
+    private ReceiptTemplate getOrCreate(Long shopId) {
+        return receiptTemplateRepository.findByShopId(shopId)
                 .orElseGet(() -> {
                     ReceiptTemplate template = new ReceiptTemplate();
-                    template.setShopId(1L);
+                    template.setShopId(shopId);
                     template.setHeaderText("WashHelper");
                     template.setFooterText("Thanks");
                     return receiptTemplateRepository.save(template);
@@ -58,6 +44,7 @@ public class ReceiptTemplateService {
 
     private Map<String, Object> toMap(ReceiptTemplate template) {
         Map<String, Object> data = new LinkedHashMap<>();
+        data.put("shopId", template.getShopId());
         data.put("showLogo", template.getShowLogo());
         data.put("showCustomerName", template.getShowCustomerName());
         data.put("showWashInstructions", template.getShowWashInstructions());
@@ -70,14 +57,6 @@ public class ReceiptTemplateService {
         return data;
     }
 
-    private Boolean toBoolean(Object value) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        return Boolean.parseBoolean(String.valueOf(value));
-    }
-
-    private String asString(Object value) {
-        return value == null ? null : String.valueOf(value);
-    }
+    private Boolean toBoolean(Object value) { return value instanceof Boolean bool ? bool : Boolean.parseBoolean(String.valueOf(value)); }
+    private String asString(Object value) { return value == null ? null : String.valueOf(value); }
 }

@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface ReceiptTemplateRepository extends JpaRepository<ReceiptTemplate, Long> {
     Optional<ReceiptTemplate> findFirstByOrderByIdAsc();
+    Optional<ReceiptTemplate> findByShopId(Long shopId);
 }

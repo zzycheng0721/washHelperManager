@@ -8,7 +8,6 @@ import java.util.List;
 
 @Repository
 public interface EmployeePermissionRepository extends JpaRepository<EmployeePermission, Long> {
-    List<EmployeePermission> findByEmployeeIdAndEnabledTrue(Long employeeId);
-    List<EmployeePermission> findByEmployeeId(Long employeeId);
-    void deleteByEmployeeId(Long employeeId);
+    List<EmployeePermission> findByShopIdAndEmployeeIdAndEnabledTrue(Long shopId, Long employeeId);
+    void deleteByShopIdAndEmployeeId(Long shopId, Long employeeId);
 }

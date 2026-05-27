@@ -14,6 +14,9 @@ public class MemberTransaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "shop_id", nullable = false)
+    private Long shopId = 1L;
+
     @Column(name = "customer_id", nullable = false)
     private Long customerId;
 
@@ -42,6 +45,9 @@ public class MemberTransaction {
     protected void onCreate() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (shopId == null) {
+            shopId = 1L;
         }
     }
 }

@@ -8,12 +8,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    @Query("SELECT o FROM Order o WHERE " +
+    Optional<Order> findByShopIdAndId(Long shopId, Long id);
+
+    @Query("SELECT o FROM Order o WHERE o.shopId = :shopId AND " +
            "(:status IS NULL OR :status = '' OR :status = 'all' OR :status = '全部' OR o.status = :status) AND " +
            "(:search IS NULL OR :search = '' OR o.orderId LIKE %:search% OR o.customerName LIKE %:search% OR o.customerPhone LIKE %:search%)")
-    Page<Order> findByStatusAndSearch(@Param("status") String status,
-                                      @Param("search") String search,
-                                      Pageable pageable);
+    Page<Order> findByShopStatusAndSearch(@Param("shopId") Long shopId,
+                                          @Param("status") String status,
+                                          @Param("search") String search,
+                                          Pageable pageable);
 }

@@ -14,7 +14,10 @@ public class MemberWallet {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "customer_id", unique = true, nullable = false)
+    @Column(name = "shop_id", nullable = false)
+    private Long shopId = 1L;
+
+    @Column(name = "customer_id", nullable = false)
     private Long customerId;
 
     @Column(nullable = false, precision = 10, scale = 2)
@@ -36,6 +39,9 @@ public class MemberWallet {
         updatedAt = now;
         if (balance == null) {
             balance = BigDecimal.ZERO;
+        }
+        if (shopId == null) {
+            shopId = 1L;
         }
     }
 

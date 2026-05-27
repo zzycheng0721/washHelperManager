@@ -41,19 +41,20 @@ public class WalletService {
     }
 
     @Transactional
-    public Map<String, Object> recharge(String pathCustomerId, Map<String, Object> request) {
-        Customer customer = resolveCustomer(pathCustomerId, request);
+    public Map<String, Object> recharge(Long shopId, String pathCustomerId, Map<String, Object> request) {
+        Customer customer = resolveCustomer(shopId, pathCustomerId, request);
         BigDecimal amount = toBigDecimal(request.get("amount"));
         BigDecimal giftAmount = toBigDecimal(request.getOrDefault("giftAmount", 0));
         BigDecimal changeAmount = amount.add(giftAmount);
 
-        MemberWallet wallet = getOrCreateWallet(customer.getId());
+        MemberWallet wallet = getOrCreateWallet(shopId, customer.getId());
         BigDecimal balance = wallet.getBalance().add(changeAmount);
         wallet.setBalance(balance);
         wallet.setLastRechargeAt(LocalDateTime.now());
         memberWalletRepository.save(wallet);
 
         MemberTransaction tx = new MemberTransaction();
+        tx.setShopId(shopId);
         tx.setCustomerId(customer.getId());
         tx.setType("recharge");
         tx.setAmount(changeAmount);
@@ -64,6 +65,7 @@ public class WalletService {
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("transactionId", txId(saved.getId()));
+        data.put("shopId", shopId);
         data.put("customerId", customer.getCustomerId());
         data.put("rechargeAmount", amount);
         data.put("giftAmount", giftAmount);
@@ -74,19 +76,20 @@ public class WalletService {
     }
 
     @Transactional
-    public Map<String, Object> createTransaction(String pathCustomerId, Map<String, Object> request) {
-        Customer customer = resolveCustomer(pathCustomerId, request);
+    public Map<String, Object> createTransaction(Long shopId, String pathCustomerId, Map<String, Object> request) {
+        Customer customer = resolveCustomer(shopId, pathCustomerId, request);
         String type = normalizeType(asString(request.getOrDefault("type", "adjust")));
         String direction = asString(request.get("direction"));
         BigDecimal amount = toBigDecimal(request.get("amount"));
         BigDecimal signedAmount = isOut(direction, type) ? amount.abs().negate() : amount.abs();
 
-        MemberWallet wallet = getOrCreateWallet(customer.getId());
+        MemberWallet wallet = getOrCreateWallet(shopId, customer.getId());
         BigDecimal balance = wallet.getBalance().add(signedAmount);
         wallet.setBalance(balance);
         memberWalletRepository.save(wallet);
 
         MemberTransaction tx = new MemberTransaction();
+        tx.setShopId(shopId);
         tx.setCustomerId(customer.getId());
         tx.setType(type);
         tx.setAmount(signedAmount);
@@ -98,17 +101,18 @@ public class WalletService {
         return transactionMap(saved, customer);
     }
 
-    public PageResponse<Map<String, Object>> getCustomerTransactions(String id, String type, int page, int pageSize,
+    public PageResponse<Map<String, Object>> getCustomerTransactions(Long shopId, String id, String type, int page, int pageSize,
                                                                      String startDate, String endDate) {
-        Customer customer = customerService.resolveCustomer(id);
-        return searchTransactions(customer.getId(), type, page, pageSize, startDate, endDate);
+        Customer customer = customerService.resolveCustomer(shopId, id);
+        return searchTransactions(shopId, customer.getId(), type, page, pageSize, startDate, endDate);
     }
 
-    public PageResponse<Map<String, Object>> searchTransactions(Long customerId, String type, int page, int pageSize,
+    public PageResponse<Map<String, Object>> searchTransactions(Long shopId, Long customerId, String type, int page, int pageSize,
                                                                 String startDate, String endDate) {
         int normalizedPage = Math.max(page, 1);
         Pageable pageable = PageRequest.of(normalizedPage - 1, pageSize);
         Page<MemberTransaction> txPage = memberTransactionRepository.search(
+                shopId,
                 customerId,
                 normalizeQueryType(type),
                 parseStart(startDate),
@@ -121,21 +125,22 @@ public class WalletService {
         return new PageResponse<>(items, normalizedPage, pageSize, txPage.getTotalElements());
     }
 
-    private Customer resolveCustomer(String pathCustomerId, Map<String, Object> request) {
+    private Customer resolveCustomer(Long shopId, String pathCustomerId, Map<String, Object> request) {
         if (pathCustomerId != null && !pathCustomerId.isBlank()) {
-            return customerService.resolveCustomer(pathCustomerId);
+            return customerService.resolveCustomer(shopId, pathCustomerId);
         }
         Object bodyCustomerId = request.get("customerId");
         if (bodyCustomerId == null) {
             throw new RuntimeException("customerId is required");
         }
-        return customerService.resolveCustomer(String.valueOf(bodyCustomerId));
+        return customerService.resolveCustomer(shopId, String.valueOf(bodyCustomerId));
     }
 
-    private MemberWallet getOrCreateWallet(Long customerId) {
-        return memberWalletRepository.findByCustomerId(customerId)
+    private MemberWallet getOrCreateWallet(Long shopId, Long customerId) {
+        return memberWalletRepository.findByShopIdAndCustomerId(shopId, customerId)
                 .orElseGet(() -> {
                     MemberWallet wallet = new MemberWallet();
+                    wallet.setShopId(shopId);
                     wallet.setCustomerId(customerId);
                     wallet.setBalance(BigDecimal.ZERO);
                     return wallet;
@@ -146,7 +151,7 @@ public class WalletService {
         Customer customer = knownCustomer;
         if (customer == null) {
             try {
-                customer = customerService.resolveCustomer(String.valueOf(tx.getCustomerId()));
+                customer = customerService.resolveCustomer(tx.getShopId(), String.valueOf(tx.getCustomerId()));
             } catch (RuntimeException ignored) {
                 customer = null;
             }
@@ -155,6 +160,7 @@ public class WalletService {
         String direction = amount.signum() < 0 ? "out" : "in";
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("id", txId(tx.getId()));
+        data.put("shopId", tx.getShopId());
         data.put("customerId", customer == null ? String.valueOf(tx.getCustomerId()) : customer.getCustomerId());
         data.put("title", transactionTitle(tx.getType()));
         data.put("amount", amount.abs());
@@ -162,7 +168,7 @@ public class WalletService {
         data.put("balance", tx.getBalanceAfter());
         data.put("type", displayType(tx.getType()));
         data.put("channel", tx.getPaymentMethod());
-        data.put("payType", paymentName(tx.getPaymentMethod()));
+        data.put("payType", tx.getPaymentMethod());
         data.put("relatedOrderId", tx.getOrderId());
         data.put("remark", tx.getRemark());
         data.put("createdAt", tx.getCreatedAt());
@@ -179,87 +185,27 @@ public class WalletService {
         return data;
     }
 
-    private String txId(Long id) {
-        return "TX-" + String.format("%012d", id == null ? 0 : id);
-    }
-
+    private String txId(Long id) { return "TX-" + String.format("%012d", id == null ? 0 : id); }
     private String transactionTitle(String type) {
-        if ("recharge".equals(type)) {
-            return "member recharge";
-        }
-        if ("consume".equals(type) || "spend".equals(type)) {
-            return "order consume";
-        }
+        if ("recharge".equals(type)) return "member recharge";
+        if ("consume".equals(type) || "spend".equals(type)) return "order consume";
         return "balance adjust";
     }
-
-    private String displayType(String type) {
-        return "consume".equals(type) ? "spend" : type;
-    }
-
-    private String normalizeType(String type) {
-        return "spend".equals(type) ? "consume" : (type == null ? "adjust" : type);
-    }
-
-    private String normalizeQueryType(String type) {
-        if (type == null || type.isBlank()) {
-            return "all";
-        }
-        return type;
-    }
-
-    private boolean isOut(String direction, String type) {
-        return "out".equalsIgnoreCase(direction) || "spend".equals(type) || "consume".equals(type);
-    }
-
-    private String paymentName(String paymentMethod) {
-        if ("wechat".equals(paymentMethod)) {
-            return "wechat";
-        }
-        if ("alipay".equals(paymentMethod)) {
-            return "alipay";
-        }
-        if ("cash".equals(paymentMethod)) {
-            return "cash";
-        }
-        return paymentMethod;
-    }
-
-    private LocalDateTime parseStart(String date) {
-        if (date == null || date.isBlank()) {
-            return null;
-        }
-        return LocalDate.parse(date.substring(0, 10)).atStartOfDay();
-    }
-
-    private LocalDateTime parseEnd(String date) {
-        if (date == null || date.isBlank()) {
-            return null;
-        }
-        return LocalDate.parse(date.substring(0, 10)).plusDays(1).atStartOfDay().minusNanos(1);
-    }
-
+    private String displayType(String type) { return "consume".equals(type) ? "spend" : type; }
+    private String normalizeType(String type) { return "spend".equals(type) ? "consume" : (type == null ? "adjust" : type); }
+    private String normalizeQueryType(String type) { return type == null || type.isBlank() ? "all" : type; }
+    private boolean isOut(String direction, String type) { return "out".equalsIgnoreCase(direction) || "spend".equals(type) || "consume".equals(type); }
+    private LocalDateTime parseStart(String date) { return date == null || date.isBlank() ? null : LocalDate.parse(date.substring(0, 10)).atStartOfDay(); }
+    private LocalDateTime parseEnd(String date) { return date == null || date.isBlank() ? null : LocalDate.parse(date.substring(0, 10)).plusDays(1).atStartOfDay().minusNanos(1); }
     private BigDecimal toBigDecimal(Object value) {
-        if (value == null) {
-            return BigDecimal.ZERO;
-        }
-        if (value instanceof Number number) {
-            return BigDecimal.valueOf(number.doubleValue());
-        }
+        if (value == null) return BigDecimal.ZERO;
+        if (value instanceof Number number) return BigDecimal.valueOf(number.doubleValue());
         return new BigDecimal(String.valueOf(value));
     }
-
     private Long toLong(Object value) {
-        if (value == null || String.valueOf(value).isBlank()) {
-            return null;
-        }
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
+        if (value == null || String.valueOf(value).isBlank()) return null;
+        if (value instanceof Number number) return number.longValue();
         return Long.valueOf(String.valueOf(value));
     }
-
-    private String asString(Object value) {
-        return value == null ? null : String.valueOf(value);
-    }
+    private String asString(Object value) { return value == null ? null : String.valueOf(value); }
 }

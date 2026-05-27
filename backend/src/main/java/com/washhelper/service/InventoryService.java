@@ -11,25 +11,24 @@ import java.util.List;
 
 @Service
 public class InventoryService {
-    
     @Autowired
     private InventoryRepository inventoryRepository;
-    
-    public PageResponse<Inventory> getInventory() {
-        List<Inventory> items = inventoryRepository.findAll();
+
+    public PageResponse<Inventory> getInventory(Long shopId) {
+        List<Inventory> items = inventoryRepository.findByShopIdOrderByIdAsc(shopId);
         return new PageResponse<>(items, 1, items.size(), items.size());
     }
-    
+
     @Transactional
-    public Inventory createInventory(Inventory inventory) {
+    public Inventory createInventory(Long shopId, Inventory inventory) {
+        inventory.setShopId(shopId);
         return inventoryRepository.save(inventory);
     }
-    
+
     @Transactional
-    public Inventory updateInventory(Long id, Inventory inventory) {
-        Inventory existing = inventoryRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Inventory not found"));
-        
+    public Inventory updateInventory(Long shopId, Long id, Inventory inventory) {
+        Inventory existing = inventoryRepository.findByShopIdAndId(shopId, id)
+                .orElseThrow(() -> new RuntimeException("Inventory not found"));
         existing.setName(inventory.getName());
         existing.setCategory(inventory.getCategory());
         existing.setAvailable(inventory.getAvailable());
@@ -37,7 +36,6 @@ public class InventoryService {
         existing.setUnit(inventory.getUnit());
         existing.setAlertThreshold(inventory.getAlertThreshold());
         existing.setNotes(inventory.getNotes());
-        
         return inventoryRepository.save(existing);
     }
 }

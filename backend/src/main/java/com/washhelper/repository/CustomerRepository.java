@@ -12,12 +12,15 @@ import java.util.Optional;
 
 @Repository
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
-    Optional<Customer> findByCustomerId(String customerId);
+    Optional<Customer> findByShopIdAndIdAndDeletedFalse(Long shopId, Long id);
+    Optional<Customer> findByShopIdAndCustomerIdAndDeletedFalse(Long shopId, String customerId);
+    Optional<Customer> findFirstByShopIdAndPhoneAndDeletedFalse(Long shopId, String phone);
 
-    @Query("SELECT c FROM Customer c WHERE " +
+    @Query("SELECT c FROM Customer c WHERE c.shopId = :shopId AND c.deleted = false AND " +
            "(:type IS NULL OR :type = '' OR :type = 'all' OR :type = '全部' OR c.memberType = :type) AND " +
            "(:search IS NULL OR :search = '' OR c.name LIKE %:search% OR c.phone LIKE %:search%)")
-    Page<Customer> findByTypeAndSearch(@Param("type") String type,
-                                       @Param("search") String search,
-                                       Pageable pageable);
+    Page<Customer> findByShopTypeAndSearch(@Param("shopId") Long shopId,
+                                           @Param("type") String type,
+                                           @Param("search") String search,
+                                           Pageable pageable);
 }

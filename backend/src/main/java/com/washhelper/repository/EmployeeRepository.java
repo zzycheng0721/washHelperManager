@@ -8,13 +8,18 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
-    @Query("SELECT e FROM Employee e WHERE " +
+    Optional<Employee> findByShopIdAndId(Long shopId, Long id);
+
+    @Query("SELECT e FROM Employee e WHERE e.shopId = :shopId AND " +
            "(:keyword IS NULL OR e.name LIKE %:keyword% OR e.phone LIKE %:keyword% OR e.role LIKE %:keyword%) AND " +
            "(:role IS NULL OR e.role = :role) AND " +
            "(:status IS NULL OR e.status = :status)")
-    Page<Employee> search(@Param("keyword") String keyword,
+    Page<Employee> search(@Param("shopId") Long shopId,
+                          @Param("keyword") String keyword,
                           @Param("role") String role,
                           @Param("status") String status,
                           Pageable pageable);
