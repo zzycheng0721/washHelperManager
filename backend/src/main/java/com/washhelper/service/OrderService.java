@@ -12,53 +12,54 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 public class OrderService {
-    
     @Autowired
     private OrderRepository orderRepository;
-    
+
     @Cacheable(value = "orders", key = "#status + '_' + #search + '_' + #page + '_' + #pageSize")
     public PageResponse<Order> getOrders(String status, String search, int page, int pageSize) {
-        Pageable pageable = PageRequest.of(page - 1, pageSize);
+        int normalizedPage = Math.max(page, 1);
+        Pageable pageable = PageRequest.of(normalizedPage - 1, pageSize);
         Page<Order> orderPage = orderRepository.findByStatusAndSearch(status, search, pageable);
-        
         return new PageResponse<>(
-            orderPage.getContent(),
-            page,
-            pageSize,
-            orderPage.getTotalElements()
+                orderPage.getContent(),
+                normalizedPage,
+                pageSize,
+                orderPage.getTotalElements()
         );
     }
-    
+
     @Transactional
     @CacheEvict(value = "orders", allEntries = true)
     public Order createOrder(Order order) {
-        String orderId = "ORD-" + (System.currentTimeMillis() % 10000);
-        order.setOrderId(orderId);
-        order.setStatus("待处理");
+        if (order.getOrderId() == null || order.getOrderId().isBlank()) {
+            String orderId = "ORD-" + (System.currentTimeMillis() % 10000);
+            order.setOrderId(orderId);
+        }
+        if (order.getStatus() == null || order.getStatus().isBlank()) {
+            order.setStatus("pending");
+        }
         return orderRepository.save(order);
     }
-    
+
     @Transactional
     @CacheEvict(value = "orders", allEntries = true)
     public void updateOrderStatus(Long id, String status) {
         Order order = orderRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new RuntimeException("Order not found"));
         order.setStatus(status);
         orderRepository.save(order);
     }
-    
+
     @Transactional
     @CacheEvict(value = "orders", allEntries = true)
     public void deleteOrder(Long id) {
         orderRepository.deleteById(id);
     }
-    
+
     public void printOrder(Long id) {
         orderRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new RuntimeException("Order not found"));
     }
 }

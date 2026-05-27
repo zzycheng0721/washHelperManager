@@ -34,6 +34,9 @@ public class Customer {
     @Column(columnDefinition = "TEXT")
     @Schema(description = "备注")
     private String notes;
+
+    @Column(name = "avatar_url", length = 255)
+    private String avatarUrl;
     
     @Column(name = "created_at")
     @Schema(description = "创建时间")
