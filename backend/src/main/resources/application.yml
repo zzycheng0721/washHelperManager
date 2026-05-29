@@ -33,6 +33,11 @@ spring:
           min-idle: 0
           max-wait: -1ms
 
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.orm.jdbc.bind: trace
+
 app:
   api-key: your-secret-api-key-here
   cors:
