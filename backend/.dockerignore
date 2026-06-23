@@ -1,0 +1,9 @@
+﻿target/
+.idea/
+*.iml
+*.log
+uploads/
+db-backups/
+docs/
+frontend/
+README.md

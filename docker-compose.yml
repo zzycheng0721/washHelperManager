@@ -1,0 +1,125 @@
+# WashHelper - one-click stack
+#
+# Usage:
+#   docker compose up -d                       # MariaDB + Redis + Backend (prod)
+#   docker compose --profile dev up            # 同时启动前端 webpack-dev-server (热更新)
+#
+# Volumes persist data across restarts. To wipe data: `docker compose down -v`.
+
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: washhelper-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-123456}
+      MARIADB_DATABASE: ${DB_NAME:-washhelper}
+      MARIADB_AUTO_UPGRADE: "1"
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD
+        - healthcheck.sh
+        - --su-mysql
+        - --connect
+        - --innodb_initialized
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - washhelper
+
+  redis:
+    image: redis:7-alpine
+    container_name: washhelper-redis
+    restart: unless-stopped
+    command:
+      - "sh"
+      - "-c"
+      - 'if [ -n "$$REDIS_PASSWORD" ]; then exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes; else exec redis-server --appendonly yes; fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - washhelper
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: washhelper/backend:local
+    container_name: washhelper-backend
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8099
+      SPRING_DATASOURCE_URL: jdbc:mariadb://mariadb:3306/${DB_NAME:-washhelper}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${DB_ROOT_PASSWORD:-123456}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      APP_API_KEY: ${APP_API_KEY:-your-secret-api-key-here}
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
+      JPA_SHOW_SQL: ${JPA_SHOW_SQL:-false}
+      LOG_SQL_LEVEL: ${LOG_SQL_LEVEL:-info}
+      LOG_SQL_BIND_LEVEL: ${LOG_SQL_BIND_LEVEL:-info}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=70}
+      TZ: Asia/Shanghai
+    ports:
+      - "${BACKEND_PORT:-8099}:8099"
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - washhelper
+
+  frontend:
+    profiles: ["dev"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: washhelper/frontend:dev
+    container_name: washhelper-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      HOST: 0.0.0.0
+      PORT: 9528
+      API_PROXY_TARGET: http://backend:8099
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      TZ: Asia/Shanghai
+    ports:
+      - "${FRONTEND_PORT:-9528}:9528"
+    volumes:
+      - ./frontend:/workspace
+      - frontend_node_modules:/workspace/node_modules
+    networks:
+      - washhelper
+
+networks:
+  washhelper:
+    driver: bridge
+
+volumes:
+  db_data:
+  redis_data:
+  backend_uploads:
+  frontend_node_modules:
