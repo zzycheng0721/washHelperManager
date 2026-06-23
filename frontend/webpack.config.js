@@ -1,8 +1,12 @@
-const path = require('path');
+﻿const path = require('path');
 const { VueLoaderPlugin } = require('vue-loader');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 const isProduction = process.env.NODE_ENV === 'production';
+
+const devServerHost = process.env.HOST || '0.0.0.0';
+const devServerPort = Number(process.env.PORT || 9528);
+const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:8099';
 
 module.exports = {
   entry: path.resolve(__dirname, 'src/main.js'),
@@ -56,8 +60,8 @@ module.exports = {
     })
   ],
   devServer: {
-    host: '0.0.0.0',
-    port: 9528,
+    host: devServerHost,
+    port: devServerPort,
     hot: true,
     allowedHosts: 'all',
     open: false,
@@ -78,7 +82,7 @@ module.exports = {
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:8099',
+        target: apiProxyTarget,
         changeOrigin: true
       }
     }

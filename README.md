@@ -1,4 +1,42 @@
 ﻿# WashHelper - 洗衣店后台管理系统
+本项目为私有项目，未经授权不得分发。
+
+## 一键启动（Docker Compose）
+
+只需安装 Docker Desktop / Docker Engine 20.10+ 即可。无需本地安装 Java、Maven、Node 或 MariaDB/Redis。
+
+```bash
+# Windows
+start.bat              # 仅启动 MariaDB + Redis + 后端
+start.bat --dev        # 同时启动前端热更新 (webpack-dev-server)
+
+# Linux / macOS
+./start.sh
+./start.sh --dev
+```
+
+或直接使用 docker compose：
+
+```bash
+cp .env.example .env                 # 第一次运行时复制环境变量
+docker compose up -d                 # 仅启动后端栈 (MariaDB + Redis + Backend)
+docker compose --profile dev up      # 同时启动前端热更新容器
+docker compose logs -f backend       # 查看后端日志
+docker compose down                  # 停止 (加 -v 可清空数据卷)
+```
+
+启动后可访问：
+
+- 后端 + 已构建的前端：http://localhost:8099/admin/
+- Swagger UI：http://localhost:8099/swagger-ui.html
+- 前端热更新（仅 --dev 模式）：http://localhost:9528/admin/
+
+> 想自定义端口 / 数据库密码 / API Key？编辑 `.env` 即可。
+> 后端镜像首次构建会在容器内执行 `mvn package`，需要 3~5 分钟，之后会缓存 Maven 依赖。
+> 数据持久化在 Docker 命名卷 `db_data` / `redis_data` / `backend_uploads` 中。
+
+本项目为私有项目，未经授权不得分发。
+# WashHelper - 洗衣店后台管理系统
 
 WashHelper 是一套面向中小型洗衣店的后台管理系统，提供订单管理、客户管理、员工管理、库存管理、会员钱包、小票打印等核心功能，帮助洗衣门店实现数字化运营管理。
 
