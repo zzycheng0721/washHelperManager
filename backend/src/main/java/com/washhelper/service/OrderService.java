@@ -74,6 +74,38 @@ public class OrderService {
         find(shopId, id);
     }
 
+    public java.util.Map<String, Object> stats(Long shopId, String range) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDateTime start;
+        java.time.LocalDateTime end = today.plusDays(1).atStartOfDay();
+        String normalized = range == null ? "today" : range.toLowerCase();
+        switch (normalized) {
+            case "week":
+                start = today.with(java.time.DayOfWeek.MONDAY).atStartOfDay();
+                break;
+            case "month":
+                start = today.withDayOfMonth(1).atStartOfDay();
+                break;
+            case "today":
+            default:
+                start = today.atStartOfDay();
+                normalized = "today";
+                break;
+        }
+
+        long orderCount = orderRepository.countByShopIdAndCreatedAtBetween(shopId, start, end);
+        long pending = orderRepository.countByShopIdAndStatusIn(shopId,
+                java.util.Arrays.asList("pending", "washing", "pickup"));
+        java.math.BigDecimal revenue = orderRepository.sumRevenueBetween(shopId, start, end);
+        if (revenue == null) revenue = java.math.BigDecimal.ZERO;
+
+        java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("range", normalized);
+        data.put("orderCount", orderCount);
+        data.put("pendingOrders", pending);
+        data.put("revenue", revenue);
+        return data;
+    }
     private Order find(Long shopId, Long id) {
         return orderRepository.findByShopIdAndId(shopId, id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));

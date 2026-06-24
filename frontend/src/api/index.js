@@ -35,9 +35,27 @@ const normalizeList = (payload) => {
   };
 };
 
+export const authApi = {
+  shops() {
+    return request.get('/auth/shops').then(extractData);
+  },
+  captcha() {
+    return request.get('/auth/captcha').then(extractData);
+  },
+  login(payload) {
+    return request.post('/auth/login', payload, { silent: true });
+  },
+  changePassword(payload) {
+    return request.post('/auth/change-password', payload).then(extractData);
+  }
+};
+
 export const ordersApi = {
   list(params = {}) {
     return request.get('/orders', { params }).then(normalizeList);
+  },
+  stats(range = 'today') {
+    return request.get('/orders/stats', { params: { range } }).then(extractData);
   },
   create(payload) {
     return request.post('/orders', payload).then(extractData);

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section>
     <PageHeader
       eyebrow="OVERVIEW"
@@ -17,10 +17,9 @@
 
     <div class="stat-grid">
       <StatCard
-        title="今日订单"
+        :title="`${rangeLabel}订单`"
         :value="stats.ordersToday"
         :hint="rangeLabel"
-        trend="+12.4%"
         :icon="Tickets"
       />
       <StatCard
@@ -31,17 +30,15 @@
         :icon="Bell"
       />
       <StatCard
-        title="今日营业额"
+        :title="`${rangeLabel}营业额`"
         :value="formatMoney(stats.revenueToday)"
-        hint="含会员消费"
-        trend="+8.2%"
+        hint="排除已取消订单"
         :icon="Coin"
       />
       <StatCard
         title="活跃会员"
         :value="stats.activeMembers"
         hint="近 30 天"
-        trend="+3"
         :icon="UserFilled"
       />
     </div>
@@ -116,7 +113,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import {
   Bell,
   Box,
@@ -183,13 +180,23 @@ async function loadOrders() {
   try {
     const result = await ordersApi.list({ page: 1, pageSize: 8 });
     recentOrders.value = result.items || [];
-    stats.ordersToday = result.total || result.items?.length || 0;
-    stats.pendingOrders = (result.items || []).filter((o) => ['pending', 'washing', 'pickup'].includes(o.status)).length;
-    stats.revenueToday = (result.items || []).reduce((sum, o) => sum + Number(o.totalPrice || 0), 0);
   } catch (error) {
     recentOrders.value = [];
   } finally {
     loadingOrders.value = false;
+  }
+}
+
+async function loadStats() {
+  try {
+    const data = await ordersApi.stats(rangeKey.value);
+    stats.ordersToday = Number(data?.orderCount || 0);
+    stats.pendingOrders = Number(data?.pendingOrders || 0);
+    stats.revenueToday = Number(data?.revenue || 0);
+  } catch (error) {
+    stats.ordersToday = 0;
+    stats.pendingOrders = 0;
+    stats.revenueToday = 0;
   }
 }
 
@@ -216,9 +223,14 @@ async function loadCustomers() {
 
 function refreshAll() {
   loadOrders();
+  loadStats();
   loadInventory();
   loadCustomers();
 }
+
+watch(rangeKey, () => {
+  loadStats();
+});
 
 onMounted(refreshAll);
 </script>

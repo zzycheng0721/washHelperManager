@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section>
     <PageHeader
       eyebrow="SERVICES"
@@ -222,21 +222,30 @@ onMounted(loadServices);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 18px;
+  padding: 20px;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(18, 26, 46, 0.84), rgba(12, 18, 32, 0.92));
-  border: 1px solid var(--admin-border);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  color: #1f2937;
 }
 
 .service-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 143, 66, 0.4);
+  border-color: rgba(255, 143, 66, 0.5);
+  box-shadow: 0 12px 28px rgba(255, 143, 66, 0.10);
 }
 
 .service-card.inactive {
-  opacity: 0.55;
+  background: #f8fafc;
+  border-style: dashed;
+}
+
+.service-card.inactive h3,
+.service-card.inactive p,
+.service-card.inactive .service-meta strong {
+  color: #94a3b8;
 }
 
 .service-card header {
@@ -248,20 +257,51 @@ onMounted(loadServices);
 .service-card h3 {
   margin: 4px 0 0;
   font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: 0.01em;
+}
+
+.service-card p.soft {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.55;
 }
 
 .service-meta {
   display: flex;
   justify-content: space-between;
-  padding: 12px;
+  align-items: center;
+  padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.05);
   margin-top: auto;
+}
+
+.service-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.service-meta .soft {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.service-meta strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2937;
 }
 
 .service-card footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(15, 23, 42, 0.06);
 }
 </style>

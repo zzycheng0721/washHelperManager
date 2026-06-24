@@ -34,8 +34,12 @@ request.interceptors.request.use((config) => {
 request.interceptors.response.use(
   (response) => {
     const body = response.data;
+    const silent = response.config?.silent === true;
 
     if (body && typeof body === 'object' && body.ok === false) {
+      if (silent) {
+        return body;
+      }
       const message = body.message || '请求失败';
       ElMessage.error(message);
       return Promise.reject(new Error(message));
@@ -44,12 +48,31 @@ request.interceptors.response.use(
     return body;
   },
   (error) => {
+    const status = error?.response?.status;
+    const silent = error?.config?.silent === true;
     const message =
       error?.response?.data?.message ||
       error?.response?.data?.error ||
       error?.message ||
       '网络请求失败';
-    ElMessage.error(message);
+
+    if (!silent) {
+      ElMessage.error(message);
+    }
+
+    if (status === 401 && typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem('washhelper.loggedIn');
+        window.localStorage.removeItem('washhelper.user');
+      } catch (e) {
+        // ignore
+      }
+      const currentHash = window.location.hash || '';
+      if (!currentHash.startsWith('#/login')) {
+        window.location.hash = '#/login';
+      }
+    }
+
     return Promise.reject(error);
   }
 );

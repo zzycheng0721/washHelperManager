@@ -27,6 +27,13 @@ public class OrderController {
         return orderService.getOrders(TenantUtil.resolve(shopId, shopIdHeader), status, search, page, pageSize);
     }
 
+    @GetMapping("/stats")
+    public ApiResponse<Map<String, Object>> getStats(
+            @RequestParam(required = false) Long shopId,
+            @RequestHeader(value = "X-Shop-Id", required = false) String shopIdHeader,
+            @RequestParam(defaultValue = "today") String range) {
+        return ApiResponse.success(orderService.stats(TenantUtil.resolve(shopId, shopIdHeader), range));
+    }
     @PostMapping
     public ApiResponse<Order> createOrder(
             @RequestParam(required = false) Long shopId,

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section>
     <PageHeader
       eyebrow="RECEIPT"
@@ -24,8 +24,34 @@
             <el-form-item label="尾部备注" class="full-span">
               <el-input v-model="form.footerText" type="textarea" :rows="2" placeholder="如：取衣请凭小票，谢谢光临！" />
             </el-form-item>
-            <el-form-item label="Logo 图片 URL" class="full-span">
-              <el-input v-model="form.logoUrl" placeholder="https://..." />
+            <el-form-item label="门店 Logo 图片" class="full-span">
+              <el-upload
+                class="logo-uploader"
+                :show-file-list="false"
+                :before-upload="beforeLogoUpload"
+                :http-request="handleLogoUpload"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              >
+                <div class="logo-uploader-trigger">
+                  <img v-if="form.logoUrl" :src="resolveAsset(form.logoUrl)" class="logo-uploader-preview" alt="logo" />
+                  <div v-else class="logo-uploader-empty">
+                    <el-icon :size="26"><UploadFilled /></el-icon>
+                    <span>点击上传 Logo</span>
+                    <small>支持 PNG / JPG / WebP / SVG，建议 2MB 以内</small>
+                  </div>
+                  <div v-if="form.logoUrl" class="logo-uploader-mask">
+                    <el-icon :size="22"><UploadFilled /></el-icon>
+                    <span>更换图片</span>
+                  </div>
+                </div>
+              </el-upload>
+              <div v-if="form.logoUrl" class="logo-uploader-meta">
+                <el-input v-model="form.logoUrl" size="small" readonly>
+                  <template #append>
+                    <el-button :icon="Delete" @click="clearLogo">移除</el-button>
+                  </template>
+                </el-input>
+              </div>
             </el-form-item>
             <el-form-item label="纸张宽度">
               <el-select v-model="form.paperWidth" style="width: 100%">
@@ -55,7 +81,7 @@
         </template>
         <div class="receipt-preview" :class="form.paperWidth === '80mm' ? 'wide' : 'narrow'">
           <div v-if="form.showLogo" class="receipt-logo">
-            <img v-if="form.logoUrl" :src="form.logoUrl" alt="logo" />
+            <img v-if="form.logoUrl" :src="resolveAsset(form.logoUrl)" alt="logo" />
             <div v-else class="logo-placeholder">LOGO</div>
           </div>
           <div class="receipt-title">{{ form.headerText || 'WashHelper 洗衣店' }}</div>
@@ -81,7 +107,8 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue';
-import { Check, Refresh } from '@element-plus/icons-vue';
+import { Check, Delete, Refresh, UploadFilled } from '@element-plus/icons-vue';
+import request from '@/api/request';
 import { ElMessage } from 'element-plus';
 import PageHeader from '@/components/PageHeader.vue';
 import { receiptTemplatesApi } from '@/api';
@@ -115,6 +142,51 @@ async function save() {
   } finally {
     saving.value = false;
   }
+}
+
+function resolveAsset(url) {
+  if (!url) return '';
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  return url.startsWith('/') ? url : '/' + url;
+}
+
+function beforeLogoUpload(file) {
+  const ok = /image\/(png|jpeg|jpg|webp|svg\+xml)/.test(file.type);
+  if (!ok) {
+    ElMessage.error('只能上传 PNG / JPG / WebP / SVG 格式的图片');
+    return false;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.error('图片大小请控制在 2MB 以内');
+    return false;
+  }
+  return true;
+}
+
+async function handleLogoUpload(option) {
+  const formData = new FormData();
+  formData.append('file', option.file);
+  try {
+    const resp = await request.post('/shop/logo/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    const data = resp?.data ?? resp ?? {};
+    const url = data.logoUrl || data.url || data.fileUrl || data.path;
+    if (!url) {
+      ElMessage.error('上传失败：返回数据缺少 URL');
+      option.onError?.(new Error('missing url'));
+      return;
+    }
+    form.logoUrl = url;
+    ElMessage.success('Logo 上传成功');
+    option.onSuccess?.(data);
+  } catch (e) {
+    option.onError?.(e);
+  }
+}
+
+function clearLogo() {
+  form.logoUrl = '';
 }
 
 onMounted(loadTemplate);
@@ -201,5 +273,86 @@ onMounted(loadTemplate);
   text-align: center;
   font-size: 12px;
   color: #475569;
+}
+
+.logo-uploader {
+  width: 100%;
+  display: block;
+}
+
+.logo-uploader :deep(.el-upload) {
+  width: 100%;
+  display: block;
+}
+
+.logo-uploader-trigger {
+  position: relative;
+  width: 100%;
+  min-height: 132px;
+  border: 1.5px dashed rgba(15, 23, 42, 0.18);
+  border-radius: 12px;
+  background: #fbfbfd;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+}
+
+.logo-uploader-trigger:hover {
+  border-color: var(--admin-accent);
+  background: #fff7f0;
+}
+
+.logo-uploader-preview {
+  max-width: 100%;
+  max-height: 110px;
+  object-fit: contain;
+  display: block;
+}
+
+.logo-uploader-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.logo-uploader-empty span {
+  font-size: 14px;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.logo-uploader-empty small {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.logo-uploader-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.55);
+  color: #ffffff;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  font-size: 13px;
+}
+
+.logo-uploader-trigger:hover .logo-uploader-mask {
+  opacity: 1;
+}
+
+.logo-uploader-meta {
+  margin-top: 10px;
 }
 </style>

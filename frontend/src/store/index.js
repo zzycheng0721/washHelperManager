@@ -1,9 +1,12 @@
-import { defineStore } from 'pinia';
+﻿import { defineStore } from 'pinia';
 
 const STORAGE = {
   apiKey: 'washhelper.apiKey',
   shopId: 'washhelper.shopId',
-  sidebarCollapsed: 'washhelper.sidebarCollapsed'
+  shopName: 'washhelper.shopName',
+  sidebarCollapsed: 'washhelper.sidebarCollapsed',
+  user: 'washhelper.user',
+  loggedIn: 'washhelper.loggedIn'
 };
 
 const DEFAULT_API_KEY = 'your-secret-api-key-here';
@@ -22,11 +25,29 @@ function writeStorage(key, value) {
   window.localStorage.setItem(key, value);
 }
 
+function removeStorage(key) {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return;
+  }
+  window.localStorage.removeItem(key);
+}
+
+function readUser() {
+  const raw = readStorage(STORAGE.user, '');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
 export const useAppStore = defineStore('app', {
   state: () => ({
     sidebarCollapsed: readStorage(STORAGE.sidebarCollapsed, '0') === '1',
     apiKey: readStorage(STORAGE.apiKey, DEFAULT_API_KEY),
     shopId: readStorage(STORAGE.shopId, '1'),
+    shopName: readStorage(STORAGE.shopName, ''),
     lastRefreshAt: ''
   }),
   getters: {
@@ -46,6 +67,10 @@ export const useAppStore = defineStore('app', {
       this.shopId = String(value || '1');
       writeStorage(STORAGE.shopId, this.shopId);
     },
+    setShopName(value) {
+      this.shopName = value || '';
+      writeStorage(STORAGE.shopName, this.shopName);
+    },
     touchRefresh() {
       this.lastRefreshAt = new Date().toISOString();
     }
@@ -53,14 +78,61 @@ export const useAppStore = defineStore('app', {
 });
 
 export const useUserStore = defineStore('user', {
-  state: () => ({
-    name: '门店管理员',
-    role: '总部管理员',
-    shopName: 'WashHelper 总部'
-  }),
+  state: () => {
+    const cached = readUser();
+    return {
+      id: cached?.id || null,
+      name: cached?.name || '',
+      role: cached?.role || '',
+      shopId: cached?.shopId || null,
+      shopName: cached?.shopName || '',
+      phone: cached?.phone || '',
+      loggedIn: readStorage(STORAGE.loggedIn, '0') === '1'
+    };
+  },
+  getters: {
+    isAuthenticated: (state) => state.loggedIn && !!state.id
+  },
   actions: {
+    setUser(payload) {
+      this.id = payload?.id ?? null;
+      this.name = payload?.name ?? '';
+      this.role = payload?.role ?? '';
+      this.shopId = payload?.shopId ?? null;
+      this.shopName = payload?.shopName ?? '';
+      this.phone = payload?.phone ?? '';
+      this.loggedIn = true;
+      writeStorage(STORAGE.user, JSON.stringify({
+        id: this.id,
+        name: this.name,
+        role: this.role,
+        shopId: this.shopId,
+        shopName: this.shopName,
+        phone: this.phone
+      }));
+      writeStorage(STORAGE.loggedIn, '1');
+    },
     updateProfile(profile) {
       Object.assign(this, profile || {});
+      writeStorage(STORAGE.user, JSON.stringify({
+        id: this.id,
+        name: this.name,
+        role: this.role,
+        shopId: this.shopId,
+        shopName: this.shopName,
+        phone: this.phone
+      }));
+    },
+    logout() {
+      this.id = null;
+      this.name = '';
+      this.role = '';
+      this.shopId = null;
+      this.shopName = '';
+      this.phone = '';
+      this.loggedIn = false;
+      removeStorage(STORAGE.user);
+      removeStorage(STORAGE.loggedIn);
     }
   }
 });
